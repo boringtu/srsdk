@@ -1,7 +1,4 @@
 node_modules
 dist
-weapp
 .DS_Store
-libs/**/*.coffee
-Gruntfile.coffee
 package-lock.json
