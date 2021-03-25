@@ -16,14 +16,6 @@ resTime = 1000
 connectTimer = null
 reqTimer = null
 resTimer = null
-# 一帧数据
-frame = ''
-# 一帧数据的长度
-frameLen = 0
-# 数据集
-frames = []
-# 数据集的长度
-framesLen = 0
 # 接收数据处理回调
 dataHandlerCallback = null
 # 发送buffer数组
@@ -196,7 +188,7 @@ monitorNotification = ->
 		characteristicId: readUUID
 		state: true
 		success: (res) =>
-			console.log '监听成功，'
+			console.log '监听成功'
 			wx.onBLECharacteristicValueChange (res) =>
 				if res.deviceId is connectDeviceId and res.serviceId is serviceUUID and res.characteristicId is readUUID
 					# 解析数据
@@ -209,98 +201,8 @@ monitorNotification = ->
  # 解析数据
 ###
 analyticData = (value) ->
-	data = dataHandler.bufferArrayToHexString value
+	data = bufferArrayToHexString value
 	console.log '接收：', data
-# 	if frame.length is 0
-# 		frameLen = parseInt(data.slice(4, 8), 16) * 2
-# 	frame += data
-# 	if (frame.length > frameLen) {
-# 		frame = ""
-# 		frameLen = 0
-# 		typeof dataHandlerCallback == FUNCTION && dataHandlerCallback(codeEnum.dataFrameTransboundary, "", "数据长度越界")
-# 	}
-# 	else if (frame.length == frameLen) {
-# 		let bCmdId = frame.slice(8, 12)
-# 		if (bCmdId === "2711") {
-# 			frame = ""
-# 			frameLen = 0
-# 			//收到authrequest握手包，回复
-# 			sendDataToDevice(dataUtil.makeAuthResponse(), (code, data, msg) => {
-# 				if (code != 0) {
-# 					if (typeof connectTimer != undefined) clearTimeout(connectTimer)
-# 					typeof connectCallback == FUNCTION && connectCallback(codeEnum.authResponseFailure)
-# 				}
-# 			})
-# 		}
-# 		else if (bCmdId === "2713") {
-# 			frame = ""
-# 			frameLen = 0
-# 			//收到initrequest握手包，回复
-# 			sendDataToDevice(dataUtil.makeInitResponse(), (code, data, msg) => {
-# 				if (code != 0) {
-# 					if (typeof connectTimer != undefined) clearTimeout(connectTimer)
-# 					if (typeof start80Timer != undefined) clearTimeout(start80Timer)
-# 					typeof connectCallback == FUNCTION && connectCallback(codeEnum.initResponseFailure)
-# 				}
-# 			})
-# 			//延时，发设备握手包
-# 			start80Timer = setTimeout(() => {
-# 				//发送设备初始化数据
-# 				initDevice()
-# 				//一段时间没任何相应，重发一次
-# 				wait80ResponseTimer = setTimeout(() => {
-# 					initDevice()
-# 				}, wait80ResponseTime)
-# 			}, start80Time)
-# 		}
-# 		else if (bCmdId === "2712") {
-# 			let outWechatFrame = frame.slice(16)
-# 			let outProtoFrame = outWechatFrame.slice(8, -6)
-# 			frame = ""
-# 			frameLen = 0
-# 			if (frames.length == 0) {
-# 				let ctl = parseInt(outProtoFrame.slice(2, 6), 16)
-# 				framesLen = ctl - 0x8000
-# 			}
-# 			frames.push(outProtoFrame)
-# 			if (frames.length == framesLen) {
-# 				let allPaseBCC = true
-# 				for (let i = 0; i < frames.length; i++) {
-# 					let itemFrame = frames[i]
-# 					let bcc = 0
-# 					for (let j = 0; j < parseInt(itemFrame.length / 2) - 1; j++) {
-# 						let bit = parseInt(itemFrame.slice(j * 2, (j + 1) * 2), 16)
-# 						bcc ^= bit
-# 					}
-# 					if (bcc != parseInt(itemFrame.slice(-2), 16)) {
-# 						allPaseBCC = false
-# 						break;
-# 					}
-# 				}
-# 				if (allPaseBCC == false) {
-# 					frames = new Array()
-# 					framesLen = 0
-# 					typeof dataHandlerCallback == FUNCTION && dataHandlerCallback(codeEnum.notPassBccCheck, "", "bcc校验不通过")
-# 				}
-# 				else {
-# 					let completeData = ""
-# 					for (let i = 0; i < frames.length; i++) {
-# 						let itemFrame = frames[i]
-# 						completeData += itemFrame.slice(8, -2)
-# 					}
-# 					frames = new Array()
-# 					framesLen = 0
-# 					typeof dataHandlerCallback == FUNCTION && dataHandlerCallback(codeEnum.successCode, completeData, "成功")
-# 				}
-# 			}
-# 		}
-# 		else {
-# 			console.log("奇异数据")
-# 			frame = ""
-# 			frameLen = 0
-# 		}
-# 	}
-# }
 
 ###
  # 发送数据到设备
@@ -308,18 +210,12 @@ analyticData = (value) ->
  # callback: 结果回调，(errMsg, data) => {}
 ###
 sendDataToDevice = (commandList, callback) ->
-	# TODO
-	bufferArray = makeFrame commandList
+	bufferArray = []
+	bufferArray.push makeFrame command for command in commandList
 	console.log bufferArray
-	# bufferArray = []
-	# bufferArray.push makeFrame command for command in commandList
 	dataHandlerCallback = callback
-	sendBufferArray = [ bufferArray ]
+	sendBufferArray = bufferArray
 	sendIndex = 0
-	frame = ''
-	frameLen = 0
-	frames = []
-	framesLen = 0
 	runningSendData()
 
 ###
@@ -327,15 +223,14 @@ sendDataToDevice = (commandList, callback) ->
 ###
 runningSendData = ->
 	value = sendBufferArray[sendIndex]
-	console.log '发送：', value
-	# let hex = dataHandler.bufferArrayToHexString(value)
-	# console.log("发送：" + hex)
+	console.log '发送：', bufferArrayToHexString value
 	wx.writeBLECharacteristicValue
 		deviceId: connectDeviceId
 		serviceId: serviceUUID
 		characteristicId: writeUUID
 		value: value
 		success: (res) =>
+			console.log '响应：', res
 			sendIndex++
 			resendCount = 3
 			runningSendData() if sendIndex < sendBufferArray.length
@@ -360,18 +255,15 @@ makeFrame = (data) ->
 	arr.push 'f8'
 	command = data.substr 0, 2
 	arr.push command
-	command = parseInt command
+	command = parseInt command, 16
 	param = data.substr 2, 2
 	arr.push param
-	param = parseInt param
+	param = parseInt param, 16
 	check = (command ^ param).toString 16
 	check = '0' + check if check.length < 2
 	arr.push check
 	arr.push '8f'
-	# "f8#{ data }#{ check }8f"
-	bufferArray = []
-	bufferArray.push hexStringToBufferArray byte for byte in arr
-	bufferArray
+	hexStringToBufferArray "f8#{ data }#{ check }8f".toLocaleUpperCase()
 
 ###
  # 将hexString转成bufferArray
@@ -384,9 +276,9 @@ hexStringToBufferArray = (hexString) ->
 ###
  # 将bufferArray转成hexString
 ###
-# bufferArrayToHexString = (bufferArray) ->
-# 	hex = Array.prototype.map.call new Uint8Array(bufferArray), (x) => "00#{ x.toString 16 }".slice -2
-# 	hex.join ''
+bufferArrayToHexString = (bufferArray) ->
+	hex = Array.prototype.map.call new Uint8Array(bufferArray), (x) => "00#{ x.toString 16 }".slice -2
+	hex.join ''
 
 module.exports = {
 	start
