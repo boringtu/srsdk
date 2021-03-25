@@ -203,6 +203,8 @@ monitorNotification = ->
 analyticData = (value) ->
 	data = bufferArrayToHexString value
 	console.log '接收：', data
+	cmd = data.substr 2, 2
+	val = data.substr 4, 2
 
 ###
  # 发送数据到设备
