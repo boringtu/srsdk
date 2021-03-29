@@ -25,6 +25,9 @@ sendIndex = 0
 # 重发次数
 resendCount = 3
 
+# 通道
+channel = 1
+
 openBluetoothAdapter = -> new Promise (resolve) =>
 	console.log '开启蓝牙适配器'
 	wx.openBluetoothAdapter
@@ -235,7 +238,10 @@ runningSendData = ->
 			console.log '响应：', res
 			sendIndex++
 			resendCount = 3
-			runningSendData() if sendIndex < sendBufferArray.length
+			if sendIndex < sendBufferArray.length
+				runningSendData()
+			else
+				dataHandlerCallback?()
 		fail: (res) =>
 			console.warn res
 			if resendCount > 0
@@ -282,7 +288,41 @@ bufferArrayToHexString = (bufferArray) ->
 	hex = Array.prototype.map.call new Uint8Array(bufferArray), (x) => "00#{ x.toString 16 }".slice -2
 	hex.join ''
 
-module.exports = {
+###
+ # 调整强度
+ # @param {Number} num 强度
+###
+adjustStrength = (num) -> new Promise (resolve) =>
+	num = (+num).toString 16
+	num = '0' + num if num.length < 2
+	cmd = 'c' + channel + num
+	sendDataToDevice [ 'd101', cmd ], (msg) => resolve msg
+
+###
+ # 调整治疗时间
+ # @param {Number} num 倒计时时间（单位：m）
+###
+adjustCDTime = (num) -> new Promise (resolve) =>
+	num = (+num).toString 16
+	num = '0' + num if num.length < 2
+	cmd = 'a' + channel + num
+	sendDataToDevice [ 'd101', cmd ], (msg) => resolve msg
+
+###
+ # 切换通道
+ # @param {Number} num 通道号（可选：1、2）
+###
+switchChannel = (num) -> new Promise (resolve) =>
+
+exports = {
 	start
 	sendDataToDevice
+	adjustStrength
+	adjustCDTime
+	switchChannel
 }
+
+Object.defineProperties exports,
+	channel: get: => channel
+
+module.exports = exports
