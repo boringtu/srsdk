@@ -2,6 +2,8 @@
 foundDeviceMap = null
 # 连接的设备ID
 connectDeviceId = null
+# 设备型号（只支持两种：'001'、'007'）
+connectDeviceType = '007'
 # 连接回调函数
 connectCallback = null
 # 蓝牙服务 uuid
@@ -62,11 +64,13 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
 
 ###
  # 开始入口
- # deviceId: 蓝牙设备ID
- # callback: 连接结果回调函数 (errMsg) => {}
+ # @param {String} deviceId 蓝牙设备ID
+ # @param {String} deviceType 蓝牙设备型号（只支持两种：'001'、'007'）
+ # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
-start = (deviceId, callback) ->
+start = (deviceId, deviceType, callback) ->
 	connectDeviceId = deviceId
+	connectDeviceType = deviceType
 	connectCallback = callback
 	scanBleDevice (device) =>
 		console.log '发现设备：', device
@@ -290,9 +294,11 @@ bufferArrayToHexString = (bufferArray) ->
 
 ###
  # 调整强度
- # @param {Number} num 强度
+ # @param {Number} num 强度（0 ~ 99）
 ###
 adjustStrength = (num) -> new Promise (resolve) =>
+	num = 0 if num < 0
+	num = 99 if num > 99
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'c' + channel + num
@@ -303,6 +309,9 @@ adjustStrength = (num) -> new Promise (resolve) =>
  # @param {Number} num 倒计时时间（单位：m）
 ###
 adjustCDTime = (num) -> new Promise (resolve) =>
+	num = 0 if num < 0
+	num = 90 if num > 90 and connectDeviceType is '001'
+	num = 99 if num > 99
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'a' + channel + num

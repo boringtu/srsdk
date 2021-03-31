@@ -28,13 +28,13 @@ module.exports = (grunt) ->
 
 		uglify:
 			options:
-				beautify: true
-				#mangle: false
+				#beautify: true
+				mangle: false
 				#preserveComments: false
 				output:
 					comments: false
-				#compress:
-					#drop_console: true
+				# compress:
+				# 	drop_console: true
 
 			default:
 				files: [
