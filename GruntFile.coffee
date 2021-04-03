@@ -29,7 +29,7 @@ module.exports = (grunt) ->
 		uglify:
 			options:
 				#beautify: true
-				mangle: false
+				mangle: true
 				#preserveComments: false
 				output:
 					comments: false

@@ -6,6 +6,8 @@ connectDeviceId = null
 connectDeviceType = '007'
 # 连接回调函数
 connectCallback = null
+# 是否正在连接
+isConnecting = 0
 # 蓝牙服务 uuid
 serviceUUID = '0000AE00-0000-1000-8000-00805F9B34FB'
 readUUID = '0000AE02-0000-1000-8000-00805F9B34FB'
@@ -14,8 +16,10 @@ writeUUID = '0000AE01-0000-1000-8000-00805F9B34FB'
 connectTime = 20 * 1000
 reqTime = 240
 resTime = 1000
-# 超时计数器
+# 连接超时句柄
 connectTimer = null
+# 自动重连心跳句柄
+autoConnectTimer = null
 reqTimer = null
 resTimer = null
 # 接收数据处理回调
@@ -29,6 +33,12 @@ resendCount = 3
 
 # 通道
 channel = 1
+# 是否正在切换通道
+isSwitchingChannel = 0
+# 等待同步结束的 setTimeout 句柄
+waitingToSwitchChannel = null
+# 从设备同步来的数据
+syncData = {}
 
 openBluetoothAdapter = -> new Promise (resolve) =>
 	console.log '开启蓝牙适配器'
@@ -68,7 +78,8 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
  # @param {String} deviceType 蓝牙设备型号（只支持两种：'001'、'007'）
  # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
-start = (deviceId, deviceType, callback) ->
+start = (deviceId = connectDeviceId, deviceType = connectDeviceType, callback = connectCallback) ->
+	console.log '开始：', arguments
 	connectDeviceId = deviceId
 	connectDeviceType = deviceType
 	connectCallback = callback
@@ -196,6 +207,10 @@ monitorNotification = ->
 		state: true
 		success: (res) =>
 			console.log '监听成功'
+			connectCallback && connectCallback()
+			connectCallback = null
+			# 启动自动重连服务
+			autoReconnect()
 			wx.onBLECharacteristicValueChange (res) =>
 				if res.deviceId is connectDeviceId and res.serviceId is serviceUUID and res.characteristicId is readUUID
 					# 解析数据
@@ -205,13 +220,31 @@ monitorNotification = ->
 			connectCallback && connectCallback '监听数据失败'
 
 ###
+ # 自动重连服务
+###
+autoReconnect = -> autoConnectTimer = setInterval =>
+	console.log '尝试获取设备服务信息'
+	wx.getBLEDeviceServices
+		deviceId: connectDeviceId
+		fail: =>
+			clearInterval autoConnectTimer
+			console.warn '获取设备服务信息失败，开始尝试重连'
+			# 尝试重连
+			start()
+, 1000
+
+###
  # 解析数据
 ###
 analyticData = (value) ->
 	data = bufferArrayToHexString value
 	console.log '接收：', data
+	return unless isSwitchingChannel
+	clearTimeout waitingToSwitchChannel
 	cmd = data.substr 2, 2
 	val = data.substr 4, 2
+	syncData[cmd] = val
+	waitingToSwitchChannel = setTimeout _switchChannel, 200
 
 ###
  # 发送数据到设备
@@ -221,7 +254,6 @@ analyticData = (value) ->
 sendDataToDevice = (commandList, callback) ->
 	bufferArray = []
 	bufferArray.push makeFrame command for command in commandList
-	console.log bufferArray
 	dataHandlerCallback = callback
 	sendBufferArray = bufferArray
 	sendIndex = 0
@@ -297,8 +329,10 @@ bufferArrayToHexString = (bufferArray) ->
  # @param {Number} num 强度（0 ~ 99）
 ###
 adjustStrength = (num) -> new Promise (resolve) =>
+	throw new Error 'param mast be a number' if isNaN num
 	num = 0 if num < 0
 	num = 99 if num > 99
+	console.log "调整强度：#{ num }"
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'c' + channel + num
@@ -309,23 +343,55 @@ adjustStrength = (num) -> new Promise (resolve) =>
  # @param {Number} num 倒计时时间（单位：m）
 ###
 adjustCDTime = (num) -> new Promise (resolve) =>
+	throw new Error 'param mast be a number' if isNaN num
+	is001 = connectDeviceType is '001'
 	num = 0 if num < 0
-	num = 90 if num > 90 and connectDeviceType is '001'
+	num = 90 if num > 90 and is001
 	num = 99 if num > 99
+	console.log "调整时间：#{ num }m"
+	num = Math.ceil num / 10 if is001
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'a' + channel + num
 	sendDataToDevice [ 'd101', cmd ], (msg) => resolve msg
 
 ###
- # 切换通道
+ # 切换通道（只有'007'才有此功能）
  # @param {Number} num 通道号（可选：1、2）
 ###
 switchChannel = (num) -> new Promise (resolve) =>
+	throw new Error 'param mast be a number' if isNaN num
+	console.log "切换到通道：#{ num }"
+	num = 1 if num < 1
+	num = 2 if num > 2
+	channel = num
+	isSwitchingChannel = 1
+	syncData = {}
+	sendDataToDevice [ 'f1fc' ], (msg) => resolve msg
+
+_switchChannel = ->
+	waitingToSwitchChannel = null
+	console.log '开始切换通道'
+	old = 3 - channel
+	cmds = []
+	# 强度
+	cVal = syncData['c' + old]
+	cmds.push "c#{ channel }#{ cVal }"
+	# 时间（因为机器时间精确度只能到分，所以切换时要 +1，但结束时间要以界面为准
+	aVal = syncData['a' + old]
+	aVal = parseInt aVal, 16
+	aVal += 1
+	aVal = aVal.toString 16
+	aVal = '0' + aVal if aVal.length < 2
+	cmds.push "a#{ channel }#{ aVal }"
+	cmds.push "c#{ old }00"
+	cmds.push "a#{ old }00"
+	cmds.push 'd101'
+	sendDataToDevice cmds
 
 exports = {
 	start
-	sendDataToDevice
+	# sendDataToDevice
 	adjustStrength
 	adjustCDTime
 	switchChannel
