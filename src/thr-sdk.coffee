@@ -33,6 +33,8 @@ resendCount = 3
 
 # 通道
 channel = 1
+# 设备工作模式（1: 自购；2: 共享）
+workMode = 2
 # 是否正在切换通道
 isSwitchingChannel = 0
 # 等待同步结束的 setTimeout 句柄
@@ -209,6 +211,8 @@ monitorNotification = ->
 			console.log '监听成功'
 			connectCallback && connectCallback()
 			connectCallback = null
+			# 设置设备工作类型（自购 / 共享）
+			sendDataToDevice [ "f10#{ workMode }" ], (msg) => resolve msg
 			# 启动自动重连服务
 			autoReconnect()
 			wx.onBLECharacteristicValueChange (res) =>
@@ -370,10 +374,11 @@ switchChannel = (num) -> new Promise (resolve) =>
 	sendDataToDevice [ 'f1fc' ], (msg) => resolve msg
 
 _switchChannel = ->
+	isSwitchingChannel = 0
 	waitingToSwitchChannel = null
 	console.log '开始切换通道'
 	old = 3 - channel
-	cmds = []
+	cmds = [ 'c101', 'a100' ]
 	# 强度
 	cVal = syncData['c' + old]
 	cmds.push "c#{ channel }#{ cVal }"
@@ -384,14 +389,20 @@ _switchChannel = ->
 	aVal = aVal.toString 16
 	aVal = '0' + aVal if aVal.length < 2
 	cmds.push "a#{ channel }#{ aVal }"
-	cmds.push "c#{ old }00"
-	cmds.push "a#{ old }00"
-	cmds.push 'd101'
+	# cmds.push "c#{ old }00"
+	# cmds.push "a#{ old }00"
+	# cmds.push 'd101'
 	sendDataToDevice cmds
+	# do (old) => setTimeout =>
+	# 	cmds = []
+	# 	cmds.push "c#{ old }00"
+	# 	cmds.push "a#{ old }00"
+	# 	sendDataToDevice cmds
+	# , 2000
 
 exports = {
 	start
-	# sendDataToDevice
+	sendDataToDevice
 	adjustStrength
 	adjustCDTime
 	switchChannel
