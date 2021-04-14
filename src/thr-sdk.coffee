@@ -34,7 +34,7 @@ resendCount = 3
 # 通道
 channel = 1
 # 设备工作模式（1: 自购；2: 共享）
-workMode = 2
+connectDeviceWorkMode = 2
 # 是否正在切换通道
 isSwitchingChannel = 0
 # 等待同步结束的 setTimeout 句柄
@@ -80,11 +80,12 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
  # @param {String} deviceType 蓝牙设备型号（只支持两种：'001'、'007'）
  # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
-start = (deviceId = connectDeviceId, deviceType = connectDeviceType, callback = connectCallback) ->
+start = (deviceId = connectDeviceId, deviceType = connectDeviceType, workMode = connectDeviceWorkMode, callback = connectCallback) ->
 	console.log '开始：', arguments
 	connectDeviceId = deviceId
 	connectDeviceType = deviceType
 	connectCallback = callback
+	connectDeviceWorkMode = workMode
 	scanBleDevice (device) =>
 		console.log '发现设备：', device
 		connectBleDevice() if device.deviceId is connectDeviceId
@@ -212,7 +213,7 @@ monitorNotification = ->
 			connectCallback && connectCallback()
 			connectCallback = null
 			# 设置设备工作类型（自购 / 共享）
-			sendDataToDevice [ "f10#{ workMode }" ], (msg) => resolve msg
+			sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ], (msg) => resolve msg
 			# 启动自动重连服务
 			autoReconnect()
 			wx.onBLECharacteristicValueChange (res) =>
