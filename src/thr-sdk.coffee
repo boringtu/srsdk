@@ -150,7 +150,7 @@ startGetService = ->
 		success: (res) =>
 			console.log '成功获取服务', res.services
 			errMsg = '根据指定 deviceId 未获取到服务' if res.services.length is 0
-			errMsg = '根据指定 deviceId 获取到了多个服务' if res.services.length > 1
+			# errMsg = '根据指定 deviceId 获取到了多个服务' if res.services.length > 1
 			if errMsg
 				clearTimeout connectTimer
 				connectCallback && connectCallback errMsg
@@ -161,6 +161,7 @@ startGetService = ->
 					if itemUUID is serviceUUID
 						haveService = true
 						break
+				console.log 'haveService: ', haveService
 				if haveService
 					# 开始获取检查目标特征
 					startGetAndCheckCharacterisitc()
@@ -213,7 +214,7 @@ monitorNotification = ->
 			connectCallback && connectCallback()
 			connectCallback = null
 			# 设置设备工作类型（自购 / 共享）
-			sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ], (msg) => resolve msg
+			sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ]
 			# 启动自动重连服务
 			autoReconnect()
 			wx.onBLECharacteristicValueChange (res) =>
@@ -245,11 +246,22 @@ analyticData = (value) ->
 	data = bufferArrayToHexString value
 	console.log '接收：', data
 	return unless isSwitchingChannel
-	clearTimeout waitingToSwitchChannel
-	cmd = data.substr 2, 2
-	val = data.substr 4, 2
-	syncData[cmd] = val
-	waitingToSwitchChannel = setTimeout _switchChannel, 200
+	# 新协议处理逻辑
+	data = data.slice 2, -2
+	arr = []
+	for i in [...new Array(Math.floor data.length / 6).keys()]
+		temp = data.substr i * 6, 6
+		cmd = temp.substr 0, 2
+		val = temp.substr 2, 2
+		syncData[cmd] = val
+	_switchChannel()
+
+	# # 旧协议处理逻辑
+	# clearTimeout waitingToSwitchChannel
+	# cmd = data.substr 2, 2
+	# val = data.substr 4, 2
+	# syncData[cmd] = val
+	# waitingToSwitchChannel = setTimeout _switchChannel, 200
 
 ###
  # 发送数据到设备
@@ -379,10 +391,12 @@ _switchChannel = ->
 	waitingToSwitchChannel = null
 	console.log '开始切换通道'
 	old = 3 - channel
-	cmds = [ 'c101', 'a100' ]
+	# cmds = [ 'c101', 'a100' ]
+	cmds = []
 	# 强度
 	cVal = syncData['c' + old]
-	cmds.push "c#{ channel }#{ cVal }"
+	# cmds.push "c#{ channel }#{ cVal }"
+	cmds.push "c#{ channel }00"
 	# 时间（因为机器时间精确度只能到分，所以切换时要 +1，但结束时间要以界面为准
 	aVal = syncData['a' + old]
 	aVal = parseInt aVal, 16
@@ -390,7 +404,7 @@ _switchChannel = ->
 	aVal = aVal.toString 16
 	aVal = '0' + aVal if aVal.length < 2
 	cmds.push "a#{ channel }#{ aVal }"
-	# cmds.push "c#{ old }00"
+	cmds.push "c#{ old }00"
 	# cmds.push "a#{ old }00"
 	# cmds.push 'd101'
 	sendDataToDevice cmds
