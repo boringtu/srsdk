@@ -2,6 +2,8 @@
 foundDeviceMap = null
 # 连接的设备ID
 connectDeviceId = null
+# 连接的设备的MAC地址
+connectDeviceMAC = null
 # 设备型号（只支持两种：'001'、'007'）
 connectDeviceType = '007'
 # 连接回调函数
@@ -76,19 +78,26 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
 
 ###
  # 开始入口
- # @param {String} deviceId 蓝牙设备ID
+ # @param {String} mac 蓝牙设备MAC地址
  # @param {String} deviceType 蓝牙设备型号（只支持两种：'001'、'007'）
  # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
-start = (deviceId = connectDeviceId, deviceType = connectDeviceType, workMode = connectDeviceWorkMode, callback = connectCallback) ->
+start = (mac = connectDeviceMAC, deviceType = connectDeviceType, workMode = connectDeviceWorkMode, callback = connectCallback) ->
 	console.log '开始：', arguments
-	connectDeviceId = deviceId
+	connectDeviceMAC = mac
 	connectDeviceType = deviceType
 	connectCallback = callback
 	connectDeviceWorkMode = workMode
 	scanBleDevice (device) =>
-		console.log '发现设备：', device
-		connectBleDevice() if device.deviceId is connectDeviceId
+		# connectBleDevice() if device.deviceId is connectDeviceId
+		temp = bufferArrayToHexString device.advertisData
+		currMAC = []
+		currMAC.push temp.substr(i * 2, 2).toLocaleUpperCase() for i in [...new Array(temp.length / 2).keys()]
+		currMAC = currMAC.join ':'
+		console.log '发现设备：', device, currMAC
+		if currMAC is connectDeviceMAC
+			connectDeviceId = device.deviceId
+			connectBleDevice()
 
 ###
  # 搜索设备
@@ -421,6 +430,7 @@ exports = {
 	adjustStrength
 	adjustCDTime
 	switchChannel
+	bufferArrayToHexString
 }
 
 Object.defineProperties exports,
