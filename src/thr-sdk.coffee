@@ -37,12 +37,19 @@ resendCount = 3
 channel = 1
 # 设备工作模式（1: 自购；2: 共享）
 connectDeviceWorkMode = 2
-# 是否正在切换通道
-isSwitchingChannel = 0
-# 等待同步结束的 setTimeout 句柄
-waitingToSwitchChannel = null
-# 从设备同步来的数据
-syncData = {}
+# 数据缓存（暂时只缓存了强度
+dataCache =
+	1:
+		c: 0
+	2:
+		c: 0
+
+# # 是否正在切换通道
+# isSwitchingChannel = 0
+# # 等待同步结束的 setTimeout 句柄
+# waitingToSwitchChannel = null
+# # 从设备同步来的数据
+# syncData = {}
 
 openBluetoothAdapter = -> new Promise (resolve) =>
 	console.log '开启蓝牙适配器'
@@ -254,16 +261,17 @@ autoReconnect = -> autoConnectTimer = setInterval =>
 analyticData = (value) ->
 	data = bufferArrayToHexString value
 	console.log '接收：', data
-	return unless isSwitchingChannel
-	# 新协议处理逻辑
-	data = data.slice 2, -2
-	arr = []
-	for i in [...new Array(Math.floor data.length / 6).keys()]
-		temp = data.substr i * 6, 6
-		cmd = temp.substr 0, 2
-		val = temp.substr 2, 2
-		syncData[cmd] = val
-	_switchChannel()
+
+	# return unless isSwitchingChannel
+	# # 新协议处理逻辑
+	# data = data.slice 2, -2
+	# arr = []
+	# for i in [...new Array(Math.floor data.length / 6).keys()]
+	# 	temp = data.substr i * 6, 6
+	# 	cmd = temp.substr 0, 2
+	# 	val = temp.substr 2, 2
+	# 	syncData[cmd] = val
+	# _switchChannel()
 
 	# # 旧协议处理逻辑
 	# clearTimeout waitingToSwitchChannel
@@ -362,7 +370,7 @@ adjustStrength = (num) -> new Promise (resolve) =>
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'c' + channel + num
-	sendDataToDevice [ 'd101', cmd ], (msg) => resolve msg
+	sendDataToDevice [ 'd101', "e10#{ channel }", cmd ], (msg) => resolve msg
 
 ###
  # 调整治疗时间
@@ -378,8 +386,9 @@ adjustCDTime = (num) -> new Promise (resolve) =>
 	num = Math.ceil num / 10 if is001
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
-	cmd = 'a' + channel + num
-	sendDataToDevice [ 'd101', cmd ], (msg) => resolve msg
+	# cmd = 'a' + channel + num
+	# sendDataToDevice [ 'd101', "e10#{ channel }", cmd ], (msg) => resolve msg
+	sendDataToDevice [ 'd101', "a1#{ num }", "a2#{ num }" ], (msg) => resolve msg
 
 ###
  # 切换通道（只有'007'才有此功能）
@@ -391,41 +400,44 @@ switchChannel = (num) -> new Promise (resolve) =>
 	num = 1 if num < 1
 	num = 2 if num > 2
 	channel = num
-	isSwitchingChannel = 1
-	syncData = {}
-	sendDataToDevice [ 'f1fc' ], (msg) => resolve msg
+	sendDataToDevice [ 'd101', "e10#{ channel }", "c#{ channel }#{ dataCache[channel].c }" ], (msg) => resolve msg
 
-_switchChannel = ->
-	isSwitchingChannel = 0
-	waitingToSwitchChannel = null
-	console.log '开始切换通道'
-	old = 3 - channel
-	# cmds = [ 'c101', 'a100' ]
-	cmds = []
-	# 通道
-	cmds.push "e10#{ channel }"
-	# 强度
-	# cVal = syncData['c' + old]
-	# cmds.push "c#{ channel }#{ cVal }"
-	cmds.push "c#{ channel }00"
-	# 时间（因为机器时间精确度只能到分，所以切换时要 +1，但结束时间要以界面为准
-	aVal = syncData['a' + old]
-	aVal = parseInt aVal, 16
-	aVal += 1
-	aVal = aVal.toString 16
-	aVal = '0' + aVal if aVal.length < 2
-	# 共享模式不需要改变对应通道的时间，时间是共享的
-	cmds.push "a#{ channel }#{ aVal }" unless +connectDeviceWorkMode is 2
-	# cmds.push "c#{ old }00"
-	# cmds.push "a#{ old }00"
-	# cmds.push 'd101'
-	sendDataToDevice cmds
-	# do (old) => setTimeout =>
-	# 	cmds = []
-	# 	cmds.push "c#{ old }00"
-	# 	cmds.push "a#{ old }00"
-	# 	sendDataToDevice cmds
-	# , 2000
+	# isSwitchingChannel = 1
+	# syncData = {}
+	# sendDataToDevice [ 'f1fc' ], (msg) => resolve msg
+
+# TODO 应该已废弃
+# _switchChannel = ->
+# 	isSwitchingChannel = 0
+# 	waitingToSwitchChannel = null
+# 	console.log '开始切换通道'
+# 	old = 3 - channel
+# 	# cmds = [ 'c101', 'a100' ]
+# 	cmds = []
+# 	# 通道
+# 	cmds.push "e10#{ channel }"
+# 	# 强度
+# 	# cVal = syncData['c' + old]
+# 	# cmds.push "c#{ channel }#{ cVal }"
+# 	# cmds.push "c#{ channel }00"
+# 	# 时间（因为机器时间精确度只能到分，所以切换时要 +1，但结束时间要以界面为准
+# 	aVal = syncData['a' + old]
+# 	aVal = parseInt aVal, 16
+# 	aVal += 1
+# 	aVal = aVal.toString 16
+# 	aVal = '0' + aVal if aVal.length < 2
+# 	# 共享模式不需要改变对应通道的时间，时间是共享的
+# 	cmds.push "a#{ channel }#{ aVal }" unless +connectDeviceWorkMode is 2
+# 	# cmds.push "c#{ old }00"
+# 	# cmds.push "a#{ old }00"
+# 	# cmds.push 'd101'
+# 	sendDataToDevice cmds
+# 	# do (old) => setTimeout =>
+# 	# 	cmds = []
+# 	# 	cmds.push "c#{ old }00"
+# 	# 	cmds.push "a#{ old }00"
+# 	# 	sendDataToDevice cmds
+# 	# , 2000
 
 exports = {
 	start
@@ -433,6 +445,7 @@ exports = {
 	adjustStrength
 	adjustCDTime
 	switchChannel
+	hexStringToBufferArray
 	bufferArrayToHexString
 }
 
