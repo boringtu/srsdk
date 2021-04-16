@@ -402,8 +402,10 @@ _switchChannel = ->
 	old = 3 - channel
 	# cmds = [ 'c101', 'a100' ]
 	cmds = []
+	# 通道
+	cmds.push "e10#{ channel }"
 	# 强度
-	cVal = syncData['c' + old]
+	# cVal = syncData['c' + old]
 	# cmds.push "c#{ channel }#{ cVal }"
 	cmds.push "c#{ channel }00"
 	# 时间（因为机器时间精确度只能到分，所以切换时要 +1，但结束时间要以界面为准
@@ -412,8 +414,9 @@ _switchChannel = ->
 	aVal += 1
 	aVal = aVal.toString 16
 	aVal = '0' + aVal if aVal.length < 2
-	cmds.push "a#{ channel }#{ aVal }"
-	cmds.push "c#{ old }00"
+	# 共享模式不需要改变对应通道的时间，时间是共享的
+	cmds.push "a#{ channel }#{ aVal }" unless +connectDeviceWorkMode is 2
+	# cmds.push "c#{ old }00"
 	# cmds.push "a#{ old }00"
 	# cmds.push 'd101'
 	sendDataToDevice cmds
