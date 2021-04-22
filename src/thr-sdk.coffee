@@ -40,9 +40,9 @@ connectDeviceWorkMode = 2
 # 数据缓存（暂时只缓存了强度
 dataCache =
 	1:
-		c: 0
+		c: '00'
 	2:
-		c: 0
+		c: '00'
 
 # # 是否正在切换通道
 # isSwitchingChannel = 0
@@ -370,6 +370,7 @@ adjustStrength = (num) -> new Promise (resolve) =>
 	num = (+num).toString 16
 	num = '0' + num if num.length < 2
 	cmd = 'c' + channel + num
+	dataCache[channel].c = num
 	sendDataToDevice [ 'd101', "e10#{ channel }", cmd ], (msg) => resolve msg
 
 ###
