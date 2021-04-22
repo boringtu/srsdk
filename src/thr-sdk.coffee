@@ -401,7 +401,8 @@ switchChannel = (num) -> new Promise (resolve) =>
 	num = 1 if num < 1
 	num = 2 if num > 2
 	channel = num
-	sendDataToDevice [ 'd101', "e10#{ channel }", "c#{ channel }#{ dataCache[channel].c }" ], (msg) => resolve msg
+	# sendDataToDevice [ 'd101', "e10#{ channel }", "c#{ channel }#{ dataCache[channel].c }" ], (msg) => resolve msg
+	sendDataToDevice [ "e10#{ channel }" ], (msg) => resolve msg
 
 	# isSwitchingChannel = 1
 	# syncData = {}
