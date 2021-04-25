@@ -107,6 +107,34 @@ start = (mac = connectDeviceMAC, deviceType = connectDeviceType, workMode = conn
 			connectBleDevice()
 
 ###
+ # 结束入口
+ # @param {Function} callback 连接结果回调函数 (errMsg) => {}
+###
+end = (callback) ->
+	console.log '治疗结束，断开蓝牙连接'
+	clearInterval autoConnectTimer
+	wx.closeBLEConnection
+		deviceId: connectDeviceId
+		success: (res) =>
+			# 重置各种数据状态
+			foundDeviceMap = null
+			connectDeviceId = null
+			connectDeviceMAC = null
+			connectDeviceType = '007'
+			connectCallback = null
+			dataHandlerCallback = null
+			channel = 1
+			connectDeviceWorkMode = 2
+			dataCache =
+				1:
+					c: '00'
+				2:
+					c: '00'
+			callback && callback()
+		fail: =>
+			callback && callback '断开蓝牙连接失败'
+
+###
  # 搜索设备
  # callback: 搜索回调 (device) => {}
 ###
@@ -244,16 +272,18 @@ monitorNotification = ->
 ###
  # 自动重连服务
 ###
-autoReconnect = -> autoConnectTimer = setInterval =>
-	console.log '尝试获取设备服务信息'
-	wx.getBLEDeviceServices
-		deviceId: connectDeviceId
-		fail: =>
-			clearInterval autoConnectTimer
-			console.warn '获取设备服务信息失败，开始尝试重连'
-			# 尝试重连
-			start()
-, 1000
+autoReconnect = ->
+	clearInterval autoConnectTimer
+	autoConnectTimer = setInterval =>
+		console.log '尝试获取设备服务信息'
+		wx.getBLEDeviceServices
+			deviceId: connectDeviceId
+			fail: =>
+				clearInterval autoConnectTimer
+				console.warn '获取设备服务信息失败，开始尝试重连'
+				# 尝试重连
+				start()
+	, 1000
 
 ###
  # 解析数据
@@ -443,6 +473,7 @@ switchChannel = (num) -> new Promise (resolve) =>
 
 exports = {
 	start
+	end
 	sendDataToDevice
 	adjustStrength
 	adjustCDTime
