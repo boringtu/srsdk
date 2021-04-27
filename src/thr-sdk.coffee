@@ -66,6 +66,7 @@ startBluetoothDevicesDiscovery = -> new Promise (resolve) =>
 	console.log '开始搜索新设备'
 	wx.startBluetoothDevicesDiscovery
 		# services: ['fee7']
+		allowDuplicatesKey: true
 		success: (res) =>
 			console.log '开始搜索新设备成功'
 			resolve 1
@@ -90,6 +91,7 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
  # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
 start = (mac = connectDeviceMAC, deviceType = connectDeviceType, workMode = connectDeviceWorkMode, callback = connectCallback) ->
+	return if connectDeviceId
 	console.log '开始：', arguments
 	connectDeviceMAC = mac
 	connectDeviceType = deviceType
