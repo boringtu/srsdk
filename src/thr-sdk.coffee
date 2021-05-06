@@ -32,6 +32,8 @@ sendBufferArray = []
 sendIndex = 0
 # 重发次数
 resendCount = 3
+# 是否正在重连
+isTryingRestart = 0
 
 # 通道
 channel = 1
@@ -91,7 +93,8 @@ stopBluetoothDevicesDiscovery = -> new Promise (resolve) =>
  # @param {Function} callback 连接结果回调函数 (errMsg) => {}
 ###
 start = (mac = connectDeviceMAC, deviceType = connectDeviceType, workMode = connectDeviceWorkMode, callback = connectCallback) ->
-	return if connectDeviceId
+	return if connectDeviceId and not isTryingRestart
+	isTryingRestart = 0
 	console.log '开始：', arguments
 	connectDeviceMAC = mac
 	connectDeviceType = deviceType
@@ -284,6 +287,7 @@ autoReconnect = ->
 				clearInterval autoConnectTimer
 				console.warn '获取设备服务信息失败，开始尝试重连'
 				# 尝试重连
+				isTryingRestart = 1
 				start()
 	, 1000
 
