@@ -410,6 +410,15 @@ adjustStrength = (num) -> new Promise (resolve) =>
 	sendDataToDevice [ 'd101', "e10#{ channel }", cmd ], (msg) => resolve msg
 
 ###
+ # 重置强度 将所有通道的强度归零
+###
+resetStrengths = -> new Promise (resolve) =>
+	console.log '重置强度，将所有通道的强度归零'
+	dataCache[1].c = '00'
+	dataCache[2].c = '00'
+	sendDataToDevice [ 'c100', 'c200' ], (msg) => resolve msg
+
+###
  # 调整治疗时间
  # @param {Number} num 倒计时时间（单位：m）
 ###
@@ -484,6 +493,7 @@ exports = {
 	adjustStrength
 	adjustCDTime
 	switchChannel
+	resetStrengths
 	hexStringToBufferArray
 	bufferArrayToHexString
 }
