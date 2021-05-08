@@ -345,7 +345,9 @@ runningSendData = ->
 			sendIndex++
 			resendCount = 3
 			if sendIndex < sendBufferArray.length
-				runningSendData()
+				setTimeout =>
+					runningSendData()
+				, 10
 			else
 				dataHandlerCallback?()
 		fail: (res) =>
