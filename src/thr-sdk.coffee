@@ -262,8 +262,8 @@ monitorNotification = ->
 			console.log '监听成功'
 			connectCallback && connectCallback()
 			connectCallback = null
-			# 设置设备工作类型（自购 / 共享）
-			sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ]
+			# # 设置设备工作类型（自购 / 共享）
+			# sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ]
 			# 启动自动重连服务
 			autoReconnect()
 			wx.onBLECharacteristicValueChange (res) =>
@@ -397,6 +397,14 @@ bufferArrayToHexString = (bufferArray) ->
 	hex.join ''
 
 ###
+ # 设置设备工作模式
+###
+setDeviceWorkMode = -> new Promise (resolve) =>
+	console.log '设置设备工作模式: ', connectDeviceWorkMode
+	# 设置设备工作类型（自购 / 共享）
+	sendDataToDevice [ "f10#{ connectDeviceWorkMode }" ], (msg) => resolve msg
+
+###
  # 调整强度
  # @param {Number} num 强度（0 ~ 99）
 ###
@@ -495,6 +503,7 @@ exports = {
 	adjustStrength
 	adjustCDTime
 	switchChannel
+	setDeviceWorkMode
 	resetStrengths
 	hexStringToBufferArray
 	bufferArrayToHexString
