@@ -397,6 +397,13 @@ bufferArrayToHexString = (bufferArray) ->
 	hex.join ''
 
 ###
+ # 切换暂停状态 
+###
+switchPause = (toPause = 1) -> new Promise (resolve) =>
+	console.log if toPause then '暂停' else '继续'
+	sendDataToDevice [ "d10#{ +toPause }" ], (msg) => resolve msg
+
+###
  # 设置设备工作模式
 ###
 setDeviceWorkMode = -> new Promise (resolve) =>
@@ -499,6 +506,7 @@ switchChannel = (num) -> new Promise (resolve) =>
 exports = {
 	start
 	end
+	switchPause
 	sendDataToDevice
 	adjustStrength
 	adjustCDTime
