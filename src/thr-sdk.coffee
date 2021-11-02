@@ -401,7 +401,7 @@ bufferArrayToHexString = (bufferArray) ->
 ###
 switchPause = (toPause = 1) -> new Promise (resolve) =>
 	console.log if toPause then '暂停' else '继续'
-	sendDataToDevice [ "d10#{ +toPause }" ], (msg) => resolve msg
+	sendDataToDevice [ "d10#{ +!toPause }" ], (msg) => resolve msg
 
 ###
  # 设置设备工作模式
